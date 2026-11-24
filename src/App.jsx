@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-// Cole aqui a URL terminada em /exec gerada no Google Apps Script
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxYSPeYWw9J611ibuYmgw7zj_FdPyHwWwRvqmURk0Kqlzbc75zjP6FMhbkqlaCZJepR/exec";
 
 const questoes = [
@@ -97,7 +96,7 @@ export default function App() {
   const [statusEnvio, setStatusEnvio] = useState("");
 
   const enviarParaPlanilha = async (pontuacaoFinal) => {
-    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbxYSPeYWw9J611ibuYmgw7zj_FdPyHwWwRvqmURk0Kqlzbc75zjP6FMhbkqlaCZJepR/exec") {
+    if (!GOOGLE_SCRIPT_URL) {
       return;
     }
 
