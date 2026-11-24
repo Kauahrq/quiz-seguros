@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 
+// Cole aqui a URL terminada em /exec gerada no Google Apps Script
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxYSPeYWw9J611ibuYmgw7zj_FdPyHwWwRvqmURk0Kqlzbc75zjP6FMhbkqlaCZJepR/exec";
+
 const questoes = [
   {
     pergunta: "Em qual situação a reativação do seguro NÃO pode ser realizada?",
@@ -84,18 +87,59 @@ const questoes = [
 ];
 
 export default function App() {
+  const [nomeAluno, setNomeAluno] = useState("");
+  const [quizIniciado, setQuizIniciado] = useState(false);
   const [perguntaAtual, setPerguntaAtual] = useState(0);
   const [pontuacao, setPontuacao] = useState(0);
   const [mostrarResultado, setMostrarResultado] = useState(false);
   const [opcaoSelecionada, setOpcaoSelecionada] = useState(null);
   const [isRespondido, setIsRespondido] = useState(false);
+  const [statusEnvio, setStatusEnvio] = useState("");
+
+  const enviarParaPlanilha = async (pontuacaoFinal) => {
+    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbxYSPeYWw9J611ibuYmgw7zj_FdPyHwWwRvqmURk0Kqlzbc75zjP6FMhbkqlaCZJepR/exec") {
+      return;
+    }
+
+    setStatusEnvio("Salvando resultado...");
+    const porcentagem = Math.round((pontuacaoFinal / questoes.length) * 100);
+
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify({
+          nome: nomeAluno,
+          acertos: pontuacaoFinal,
+          total: questoes.length,
+          porcentagem: porcentagem
+        }),
+      });
+      setStatusEnvio("Resultado registrado com sucesso!");
+    } catch (error) {
+      setStatusEnvio("Não foi possível salvar automaticamente.");
+    }
+  };
+
+  const iniciarQuiz = (e) => {
+    e.preventDefault();
+    if (nomeAluno.trim() !== "") {
+      setQuizIniciado(true);
+    }
+  };
 
   const lidarComResposta = (indiceOpcao) => {
     setOpcaoSelecionada(indiceOpcao);
     setIsRespondido(true);
 
-    if (indiceOpcao === questoes[perguntaAtual].respostaCerta) {
-      setPontuacao(pontuacao + 1);
+    const acertou = indiceOpcao === questoes[perguntaAtual].respostaCerta;
+    const novaPontuacao = acertou ? pontuacao + 1 : pontuacao;
+
+    if (acertou) {
+      setPontuacao(novaPontuacao);
     }
 
     setTimeout(() => {
@@ -106,30 +150,58 @@ export default function App() {
         setIsRespondido(false);
       } else {
         setMostrarResultado(true);
+        enviarParaPlanilha(novaPontuacao);
       }
     }, 2000);
   };
 
   const reiniciarQuiz = () => {
+    setQuizIniciado(false);
+    setNomeAluno("");
     setPerguntaAtual(0);
     setPontuacao(0);
     setMostrarResultado(false);
     setOpcaoSelecionada(null);
     setIsRespondido(false);
+    setStatusEnvio("");
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-8">
         
-        {mostrarResultado ? (
-          <div className="text-center animate-fade-in">
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Resultado Final!</h2>
+        {!quizIniciado ? (
+          <form onSubmit={iniciarQuiz} className="text-center">
+            <h1 className="text-3xl font-bold text-gray-800 mb-3">
+              Quiz de Seguros
+            </h1>
+            <p className="text-gray-600 mb-6">
+              Digite seu nome completo para iniciar a avaliação.
+            </p>
+            <input
+              type="text"
+              required
+              placeholder="Seu nome completo"
+              value={nomeAluno}
+              onChange={(e) => setNomeAluno(e.target.value)}
+              className="w-full p-4 border-2 border-gray-300 rounded-lg mb-6 text-gray-800 focus:outline-none focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors w-full cursor-pointer"
+            >
+              Começar Quiz
+            </button>
+          </form>
+        ) : mostrarResultado ? (
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">Resultado Final!</h2>
+            <p className="text-gray-500 mb-4">Aluno: <span className="font-semibold text-gray-700">{nomeAluno}</span></p>
             <p className="text-xl text-gray-600 mb-6">
               Você acertou <span className="font-bold text-blue-600">{pontuacao}</span> de {questoes.length} perguntas.
             </p>
             
-            <div className="mb-8">
+            <div className="mb-6">
               {pontuacao >= 6 ? (
                 <div className="p-4 bg-green-100 text-green-700 rounded-lg text-lg font-medium">
                   🎉 Excelente trabalho! Você domina os processos!
@@ -145,11 +217,15 @@ export default function App() {
               )}
             </div>
 
+            {statusEnvio && (
+              <p className="text-sm text-gray-500 mb-6">{statusEnvio}</p>
+            )}
+
             <button 
               onClick={reiniciarQuiz}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors w-full"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors w-full cursor-pointer"
             >
-              Tentar Novamente
+              Fazer Novamente
             </button>
           </div>
         ) : (
@@ -173,7 +249,7 @@ export default function App() {
             <div className="space-y-3">
               {questoes[perguntaAtual].opcoes.map((opcao, index) => {
                 
-                let classesBotao = "w-full text-left p-4 rounded-lg border-2 transition-all font-medium text-gray-700 hover:bg-blue-50 hover:border-blue-300";
+                let classesBotao = "w-full text-left p-4 rounded-lg border-2 transition-all font-medium text-gray-700 hover:bg-blue-50 hover:border-blue-300 cursor-pointer";
                 
                 if (isRespondido) {
                   if (index === questoes[perguntaAtual].respostaCerta) {
